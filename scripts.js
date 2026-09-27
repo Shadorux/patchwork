@@ -75,9 +75,6 @@ document.addEventListener('keydown', (event) => {
 
 document.querySelector('#discord-sync-button')?.addEventListener('click', () => openDialog(discordDialog));
 
-// ── in-page search ──────────────────────────────────────────────
-// #page-search is a <search> element, not a <form>, so it never dispatches a
-// submit event. The button and the Enter key are wired up directly instead.
 const searchInput = document.querySelector('#search-query');
 
 const reportSearchFailure = () => {
@@ -110,13 +107,16 @@ const searchCurrentPage = () => {
 
 document.querySelector('.search-submit')?.addEventListener('click', searchCurrentPage);
 
+searchInput?.addEventListener('input', () => {
+    toolbarStatus.textContent = '';
+});
+
 searchInput?.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     searchCurrentPage();
 });
 
-// ── activity log ────────────────────────────────────────────────
 const activityTypeLabels = {
     switch: 'Front switch',
     setting: 'Setting update',
@@ -183,7 +183,6 @@ const recordActivityChange = ({ type, description, undo }) => {
     return item;
 };
 
-// ── messages from the page inside #content-frame ────────────────
 // file:// documents report the origin "null", which is not a usable target.
 const frameTargetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
 const pendingFrameRequests = new Map();
@@ -196,7 +195,18 @@ const requestFromFrame = (message) => new Promise((resolve, reject) => {
     }
 
     const requestId = ++nextFrameRequestId;
-    pendingFrameRequests.set(requestId, { resolve, reject });
+    const timeoutId = setTimeout(() => {
+        if (pendingFrameRequests.has(requestId)) {
+            pendingFrameRequests.delete(requestId);
+            reject(new Error('The request timed out.'));
+        }
+    }, 5000);
+
+    pendingFrameRequests.set(requestId, {
+        resolve: (val) => { clearTimeout(timeoutId); resolve(val); },
+        reject: (err) => { clearTimeout(timeoutId); reject(err); }
+    });
+
     contentFrame.contentWindow.postMessage(
         { ...message, source: 'patchwork', requestId },
         frameTargetOrigin
