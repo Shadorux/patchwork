@@ -8,5 +8,160 @@
 </head>
 <body>
     <h1>Settings</h1>
+
+    <section class="settings-section">
+      <h2>Import alters</h2>
+      <p class="dialog-hint">Bring in alters from PluralKit using a token, or paste a JSON export.</p>
+
+      <div class="import-mode-toggle" role="group" aria-label="Import source">
+        <button type="button" class="toolbar-button import-mode-btn active" data-mode="token">PluralKit token</button>
+        <button type="button" class="toolbar-button import-mode-btn" data-mode="json">JSON file</button>
+      </div>
+
+      <div class="import-field" data-import-mode="token">
+        <label class="field-label" for="pluralkit-token">PluralKit token</label>
+        <input class="field-input" type="text" id="pluralkit-token" placeholder="pk-..." autocomplete="off">
+        <p class="field-hint">A member token from PluralKit. We never send it anywhere.</p>
+        <button class="toolbar-button primary-action" type="button" id="import-token-btn">Import from token</button>
+      </div>
+
+      <div class="import-field" data-import-mode="json" hidden>
+        <label class="field-label" for="pluralkit-json">PluralKit JSON</label>
+        <textarea class="field-input" id="pluralkit-json" rows="6" placeholder="Paste the contents of a PluralKit member export here"></textarea>
+        <button class="toolbar-button primary-action" type="button" id="import-json-btn">Import from JSON</button>
+      </div>
+
+      <div id="import-status" class="import-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <script type="module">
+      import { getAll, put } from '../assets/db.js';
+
+      const tokenField = document.getElementById('pluralkit-token');
+      const jsonField  = document.getElementById('pluralkit-json');
+      const statusEl   = document.getElementById('import-status');
+      const tokenBtn   = document.getElementById('import-token-btn');
+      const jsonBtn    = document.getElementById('import-json-btn');
+      const modeBtns   = document.querySelectorAll('.import-mode-btn');
+      const fieldWraps = document.querySelectorAll('.import-field');
+
+      let existingNames = new Set();
+
+      const setStatus = (message, isError = false) => {
+        statusEl.textContent = message || '';
+        statusEl.style.color = isError ? 'var(--accent-strong, #9b6559)' : 'var(--muted)';
+      };
+
+      const setMode = (mode) => {
+        modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+        fieldWraps.forEach(wrap => {
+          const show = wrap.dataset.importMode === mode;
+          wrap.hidden = !show;
+        });
+      };
+
+      modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
+
+      const EMOJIS = ['✦', '★', '☆', '◆', '◇', '✧', '♢'];
+
+      const normalize = (member) => ({
+        name:         member.name || member.id || 'unnamed alter',
+        displayName:  member.displayName || null,
+        pronouns:     member.pronouns || null,
+        color:        member.color || null,
+        avatar:       member.avatar_url || null,
+        banner:       member.banner_url || null,
+        description:  member.description || '',
+        emoji:        member.emoji || EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+        proxyTags:    (member.proxy_tags || []).map(t => ({
+          prefix: t.prefix || '',
+          suffix: t.suffix || '',
+        })),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      const importMembers = async (members) => {
+        const existing = await getAll('alters');
+        existingNames = new Set(existing.map(a => (a.name || '').toLowerCase()));
+
+        let added = 0;
+        let skipped = 0;
+        for (const member of members) {
+          const record = normalize(member);
+          if (existingNames.has(record.name.toLowerCase())) {
+            skipped += 1;
+            continue;
+          }
+          await put('alters', record);
+          existingNames.add(record.name.toLowerCase());
+          added += 1;
+        }
+        return { added, skipped, total: members.length };
+      };
+
+      const fetchMembersByToken = async (token) => {
+        const response = await fetch(
+          `https://pluralkit.me/api/v2/members?uid=${encodeURIComponent(token)}`
+        );
+        if (!response.ok) {
+          throw new Error(`PluralKit responded with ${response.status}.`);
+        }
+        const data = await response.json();
+        if (data && Array.isArray(data.members)) return data.members;
+        if (Array.isArray(data)) return data;
+        throw new Error('Unexpected response shape from PluralKit.');
+      };
+
+      const parseJson = (text) => {
+        const data = JSON.parse(text);
+        if (data && Array.isArray(data.members)) return data.members;
+        if (Array.isArray(data)) return data;
+        if (data && typeof data === 'object' && (data.id || data.name)) return [data];
+        throw new Error('JSON does not look like a PluralKit member export.');
+      };
+
+      const runImport = async (promise) => {
+        setStatus('Importing…');
+        try {
+          const members = await promise;
+          if (!members.length) {
+            setStatus('No alters found to import.', true);
+            return;
+          }
+          const result = await importMembers(members);
+          if (result.added === 0) {
+            setStatus(`Imported 0 of ${result.total}. ${result.skipped} already existed.`, true);
+          } else {
+            setStatus(`Imported ${result.added} of ${result.total} alters. ${result.skipped} skipped (already existed).`);
+          }
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : 'Import failed.', true);
+        }
+      };
+
+      tokenBtn.addEventListener('click', async () => {
+        const token = tokenField.value.trim();
+        if (!token) {
+          setStatus('Enter a PluralKit token first.', true);
+          return;
+        }
+        await runImport(fetchMembersByToken(token));
+      });
+
+      jsonBtn.addEventListener('click', async () => {
+        const text = jsonField.value.trim();
+        if (!text) {
+          setStatus('Paste PluralKit JSON first.', true);
+          return;
+        }
+        await runImport(parseJson(text));
+      });
+
+      tokenField.addEventListener('keydown', (e) => { if (e.key === 'Enter') tokenBtn.click(); });
+      jsonField.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) jsonBtn.click(); });
+
+      getAll('alters').then(list => { existingNames = new Set(list.map(a => (a.name || '').toLowerCase())); });
+    </script>
 </body>
 </html>

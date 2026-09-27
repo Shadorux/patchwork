@@ -9,3 +9,49 @@ h1 {
     margin: 0;
     font-size: 1.5rem;
 }
+
+.settings-section {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid var(--border, #d7d0c7);
+    border-radius: 14px;
+    background: var(--panel-strong, #f5f1ed);
+    box-shadow: 0 10px 30px rgba(34, 30, 27, 0.08);
+}
+
+.settings-section h2 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+}
+
+.import-mode-toggle {
+    display: inline-flex;
+    gap: 6px;
+    margin: 14px 0;
+}
+
+.import-mode-btn {
+    border-color: var(--border, #d7d0c7);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.import-mode-btn.active {
+    border-color: var(--accent-strong, #665b51);
+    background: var(--accent-strong, #665b51);
+    color: #fff;
+}
+
+.import-field {
+    margin-top: 14px;
+}
+
+.import-field textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.import-status {
+    min-height: 1.2em;
+    margin-top: 14px;
+    font-size: 0.84rem;
+}

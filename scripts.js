@@ -6,6 +6,7 @@ const discordDialog = document.querySelector('#discord-dialog');
 const activityDialog = document.querySelector('#activity-dialog');
 const toolbarStatus = document.querySelector('#toolbar-status');
 const activityList = document.querySelector('#activity-list');
+const contentFrame = document.querySelector('iframe[name="content-frame"]');
 const activityItems = [];
 
 const setToggleState = (button, isOpen) => {
@@ -74,21 +75,46 @@ document.addEventListener('keydown', (event) => {
 
 document.querySelector('#discord-sync-button')?.addEventListener('click', () => openDialog(discordDialog));
 
-document.querySelector('#page-search')?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const query = document.querySelector('#search-query').value.trim();
+const searchInput = document.querySelector('#search-query');
+
+const reportSearchFailure = () => {
+    toolbarStatus.textContent = 'the current page cannot be searched.';
+};
+
+const searchCurrentPage = () => {
+    const query = searchInput?.value.trim() ?? '';
+
     if (!query) {
         toolbarStatus.textContent = 'enter a search here.';
         return;
     }
 
-    try {
-        const contentWindow = document.querySelector('iframe[name="content-frame"]').contentWindow;
-        const found = contentWindow.find(query, false, false, true);
-        toolbarStatus.textContent = found ? `found “${query}” on this page.` : `did not find a match for “${query}” on this page.`;
-    } catch {
-        toolbarStatus.textContent = 'the current page cannot be searched.';
+    if (!contentFrame) {
+        reportSearchFailure();
+        return;
     }
+
+    try {
+        const contentWindow = contentFrame.contentWindow;
+        const found = contentWindow.find(query, false, false, true);
+        toolbarStatus.textContent = found
+            ? `found "${query}" on this page.`
+            : `did not find a match for "${query}" on this page.`;
+    } catch {
+        reportSearchFailure();
+    }
+};
+
+document.querySelector('.search-submit')?.addEventListener('click', searchCurrentPage);
+
+searchInput?.addEventListener('input', () => {
+    toolbarStatus.textContent = '';
+});
+
+searchInput?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    searchCurrentPage();
 });
 
 const activityTypeLabels = {
@@ -157,6 +183,83 @@ const recordActivityChange = ({ type, description, undo }) => {
     return item;
 };
 
+// file:// documents report the origin "null", which is not a usable target.
+const frameTargetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+const pendingFrameRequests = new Map();
+let nextFrameRequestId = 0;
+
+const requestFromFrame = (message) => new Promise((resolve, reject) => {
+    if (!contentFrame?.contentWindow) {
+        reject(new Error('The current page cannot be reached.'));
+        return;
+    }
+
+    const requestId = ++nextFrameRequestId;
+    const timeoutId = setTimeout(() => {
+        if (pendingFrameRequests.has(requestId)) {
+            pendingFrameRequests.delete(requestId);
+            reject(new Error('The request timed out.'));
+        }
+    }, 5000);
+
+    pendingFrameRequests.set(requestId, {
+        resolve: (val) => { clearTimeout(timeoutId); resolve(val); },
+        reject: (err) => { clearTimeout(timeoutId); reject(err); }
+    });
+
+    contentFrame.contentWindow.postMessage(
+        { ...message, source: 'patchwork', requestId },
+        frameTargetOrigin
+    );
+});
+
+const alterLabel = (alter) => alter?.displayName?.trim() || alter?.name?.trim() || 'unnamed alter';
+
+const recordAlterSaved = (data) => {
+    const alter = data.alter;
+    if (!alter) return;
+
+    const label = `"${alterLabel(alter)}"`;
+    recordActivityChange({
+        type: 'alter',
+        description: data.isNew ? `Added alter ${label}.` : `Updated alter ${label}.`,
+        undo: data.isNew
+            ? () => requestFromFrame({ type: 'undo-alter-save', id: alter.id })
+            : () => data.previous
+                ? requestFromFrame({ type: 'restore-alter', alter: data.previous })
+                : Promise.reject(new Error('The previous version is not available.'))
+    });
+};
+
+const recordAlterDeleted = (data) => {
+    const alter = data.alter;
+    if (!alter) return;
+
+    recordActivityChange({
+        type: 'alter',
+        description: `Deleted alter "${alterLabel(alter)}".`,
+        undo: () => requestFromFrame({ type: 'restore-alter', alter })
+    });
+};
+
+window.addEventListener('message', (event) => {
+    if (!contentFrame || event.source !== contentFrame.contentWindow) return;
+
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+
+    if (data.type === 'frame-response') {
+        const pending = pendingFrameRequests.get(data.requestId);
+        if (!pending) return;
+        pendingFrameRequests.delete(data.requestId);
+        if (data.ok) pending.resolve();
+        else pending.reject(new Error(data.error || 'The change could not be undone.'));
+        return;
+    }
+
+    if (data.type === 'alter-saved') recordAlterSaved(data);
+    if (data.type === 'alter-deleted') recordAlterDeleted(data);
+});
+
 window.patchworkActivity = { record: recordActivityChange };
 renderActivity();
-
