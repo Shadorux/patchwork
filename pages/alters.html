@@ -1,12 +1,420 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alters | patchwork</title>
-    <link rel="stylesheet" href="pages.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alters — patchwork</title>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="pages.css">
+  <link rel="stylesheet" href="alters.css">
 </head>
-<body>
+<body class="page">
+
+<div class="page-header">
     <h1>Alters</h1>
+    <div class="page-header-actions">
+      <label class="card-size-slider-wrap" for="card-size" aria-label="Card size">
+        <span class="card-size-label" id="card-size-label">Compact</span>
+        <input type="range" id="card-size" class="card-size-slider" min="0" max="2" step="1" value="1"
+               aria-label="Card size" aria-describedby="card-size-label" list="card-size-ticks">
+        <datalist id="card-size-ticks">
+          <option value="0" label="Icon"></option>
+          <option value="1" label="Compact"></option>
+          <option value="2" label="Full"></option>
+        </datalist>
+      </label>
+      <button class="toolbar-button primary-action" id="add-alter-btn" type="button">+ Add alter</button>
+    </div>
+  </div>
+
+  <div id="alters-grid" class="alter-grid">
+  </div>
+
+<!-- Add/Edit dialog -->
+<dialog id="alter-dialog" class="toolbar-dialog" aria-labelledby="alter-dialog-title">
+  <div class="dialog-heading">
+    <h2 id="alter-dialog-title">Add alter</h2>
+    <div class="dialog-mode-toggle">
+      <button type="button" class="toolbar-button mode-btn active" id="view-mode-btn" aria-pressed="true">View</button>
+      <button type="button" class="toolbar-button mode-btn" id="edit-mode-btn" aria-pressed="false">Edit</button>
+    </div>
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+  </div>
+
+  <div class="alter-editor">
+
+    <!-- View panel — shown in view mode, hidden in edit mode -->
+    <div class="alter-view-panel" id="alter-view-panel" hidden>
+      <div class="alter-view-header">
+        <div class="alter-view-avatar" id="view-avatar"></div>
+        <div class="alter-view-identity">
+          <div class="alter-view-name" id="view-name"></div>
+          <div class="alter-view-pronouns" id="view-pronouns"></div>
+        </div>
+        <div class="alter-view-swatch" id="view-swatch"></div>
+      </div>
+      <div class="alter-view-fields" id="alter-view-fields">
+        <!-- populated by renderViewPanel() -->
+      </div>
+      <div class="dialog-actions">
+        <button class="toolbar-button" type="button" id="delete-alter-btn-view">Delete</button>
+        <button class="toolbar-button" type="button" id="cancel-alter-btn-view">Close</button>
+      </div>
+    </div>
+
+    <!-- Form panel — shown in edit mode -->
+    <form id="alter-form" method="dialog" class="alter-editor-form" hidden>
+      <input type="hidden" id="alter-id">
+
+      <label class="field-label" for="alter-name">Name *</label>
+      <input class="field-input" type="text" id="alter-name" required maxlength="100"
+             placeholder="e.g. Rowan">
+
+      <label class="field-label" for="alter-display-name">Display name</label>
+      <input class="field-input" type="text" id="alter-display-name" maxlength="100"
+             placeholder="shown in messages instead of name">
+
+      <label class="field-label" for="alter-pronouns">Pronouns</label>
+      <input class="field-input" type="text" id="alter-pronouns" maxlength="100"
+             placeholder="e.g. they/them">
+
+      <label class="field-label" for="alter-emoji">Avatar emoji</label>
+      <input class="field-input" type="text" id="alter-emoji" maxlength="2"
+             placeholder="✨" inputmode="emoji" title="Used when no avatar URL is set">
+
+      <label class="field-label" for="alter-color">Color</label>
+      <div class="color-row">
+        <input class="field-input" type="text" id="alter-color" maxlength="7" placeholder="#7c6fcd">
+        <input type="color" id="alter-color-picker" value="#7c6fcd" aria-label="Pick color">
+      </div>
+
+      <label class="field-label" for="alter-avatar">Avatar URL</label>
+      <input class="field-input" type="url" id="alter-avatar" maxlength="256"
+             placeholder="https://...">
+
+      <label class="field-label" for="alter-description">Description</label>
+      <textarea class="field-input" id="alter-description" rows="4" maxlength="1000"></textarea>
+
+      <fieldset class="proxy-section">
+        <legend class="field-label">Proxy tags</legend>
+        <p class="field-hint">text that wraps a message so the bot knows who's speaking</p>
+        <div id="proxy-rows"></div>
+        <button class="toolbar-button" type="button" id="add-proxy-btn">+ Add proxy tag</button>
+      </fieldset>
+
+      <div class="dialog-actions">
+        <button class="toolbar-button" type="button" id="delete-alter-btn" hidden>Delete</button>
+        <button class="toolbar-button" type="button" id="cancel-alter-btn">Cancel</button>
+        <button class="toolbar-button primary-action" type="submit" id="save-alter-btn">Save</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script type="module">
+  import { getAll, put, remove } from '../assets/db.js';
+
+  const grid      = document.getElementById('alters-grid');
+  const dialog    = document.getElementById('alter-dialog');
+  const form      = document.getElementById('alter-form');
+  const proxyRows = document.getElementById('proxy-rows');
+
+  const colorText   = document.getElementById('alter-color');
+  const colorPicker = document.getElementById('alter-color-picker');
+  const viewModeBtn = document.getElementById('view-mode-btn');
+  const editModeBtn = document.getElementById('edit-mode-btn');
+  const formEl      = document.getElementById('alter-form');
+
+  // The record currently being edited, kept so an edit can be undone.
+  let editingAlter = null;
+  let altersById = new Map();
+  let currentSize = 1;   // 0 = icon, 1 = compact, 2 = full
+  let inEditMode = false;
+
+  const messageToParent = (message) => window.parent?.postMessage(message, '*');
+
+  const escHtml = (value) => {
+    const ESCAPED_CHARACTERS = { '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot', "'": 'apos' };
+    return String(value ?? '').replace(/[&<>"']/g, (character) => `&${ESCAPED_CHARACTERS[character]};`);
+  };
+
+  function addProxyRow(prefix = '', suffix = '') {
+    const row = document.createElement('div');
+    row.className = 'proxy-row';
+    row.innerHTML = `
+      <input class="field-input proxy-prefix" type="text" placeholder="prefix" value="${escHtml(prefix)}">
+      <span class="proxy-sep">text</span>
+      <input class="field-input proxy-suffix" type="text" placeholder="suffix" value="${escHtml(suffix)}">
+      <button type="button" class="toolbar-button proxy-remove" aria-label="Remove proxy tag">×</button>
+    `;
+    row.querySelector('.proxy-remove').onclick = () => row.remove();
+    proxyRows.appendChild(row);
+  }
+
+  document.getElementById('add-proxy-btn').onclick = () => addProxyRow();
+
+  colorPicker.addEventListener('input', () => {
+    colorText.value = colorPicker.value;
+  });
+  colorText.addEventListener('input', () => {
+    const val = colorText.value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(val)) colorPicker.value = val;
+  });
+
+  function renderViewPanel(alter) {
+    const color = alter.color || '#7c6fcd';
+
+    // Header: avatar + name + pronouns + color swatch
+    const viewAvatar = document.getElementById('view-avatar');
+    if (alter.avatar) {
+      viewAvatar.innerHTML = `<img class="alter-view-img" src="${escHtml(alter.avatar)}" alt="">`;
+    } else {
+      viewAvatar.textContent = alter.emoji || '✦';
+      viewAvatar.style.background = color;
+    }
+    document.getElementById('view-name').textContent = alter.displayName || alter.name || '';
+    document.getElementById('view-pronouns').textContent = alter.pronouns || '';
+    const swatch = document.getElementById('view-swatch');
+    swatch.style.background = color;
+    swatch.title = color;
+
+    const fields = document.getElementById('alter-view-fields');
+    const rows = [];
+
+    if (alter.name) rows.push(['Name', escHtml(alter.name)]);
+    if (alter.displayName) rows.push(['Display name', escHtml(alter.displayName)]);
+    if (alter.pronouns) rows.push(['Pronouns', escHtml(alter.pronouns)]);
+    if (alter.emoji) rows.push(['Emoji', escHtml(alter.emoji)]);
+    if (alter.color) rows.push(['Color', `<span class="view-color-chip" style="background:${escHtml(color)}"></span>${escHtml(alter.color)}`]);
+    if (alter.avatar) rows.push(['Avatar URL', `<a class="view-link" href="${escHtml(alter.avatar)}" target="_blank" rel="noopener">${escHtml(alter.avatar)}</a>`]);
+    if (alter.description) rows.push(['Description', `<span class="view-description">${escHtml(alter.description)}</span>`]);
+
+    const proxyHtml = (alter.proxyTags ?? [])
+      .filter(t => t.prefix || t.suffix)
+      .map(t => `<code class="proxy-chip">${escHtml(t.prefix)}text${escHtml(t.suffix)}</code>`)
+      .join('');
+    if (proxyHtml) rows.push(['Proxy tags', proxyHtml]);
+
+    fields.innerHTML = rows.map(([label, value]) => `
+      <div class="view-field">
+        <span class="view-field-label">${label}</span>
+        <span class="view-field-value">${value}</span>
+      </div>
+    `).join('');
+  }
+
+  const viewPanel = document.getElementById('alter-view-panel');
+
+  function setEditMode(edit) {
+    inEditMode = edit;
+
+    viewModeBtn.classList.toggle('active', !edit);
+    viewModeBtn.setAttribute('aria-pressed', String(!edit));
+    editModeBtn.classList.toggle('active', edit);
+    editModeBtn.setAttribute('aria-pressed', String(edit));
+
+    viewPanel.hidden = edit;
+    formEl.hidden = !edit;
+
+    // When switching to view, re-render the view panel from the form's current state.
+    if (!edit && editingAlter) renderViewPanel(editingAlter);
+  }
+
+  viewModeBtn.addEventListener('click', () => setEditMode(false));
+  editModeBtn.addEventListener('click', () => setEditMode(true));
+
+  function openDialog(alter = null, startInEdit = false) {
+    editingAlter = alter;
+    form.reset();
+    proxyRows.innerHTML = '';
+    document.getElementById('alter-id').value = alter?.id ?? '';
+    document.getElementById('alter-dialog-title').textContent = alter ? alter.name : 'Add alter';
+
+    // Hide the View/Edit toggle when creating a new alter — there's no saved
+    // state to view, so we just stay in edit mode the whole time.
+    const modeToggle = document.querySelector('.dialog-mode-toggle');
+    if (modeToggle) modeToggle.style.display = alter ? '' : 'none';
+
+    const deleteBtn = document.getElementById('delete-alter-btn');
+    if (alter) {
+      deleteBtn.hidden = false;
+      deleteBtn.onclick = () => { dialog.close(); deleteAlter(alter.id); };
+      document.getElementById('alter-name').value         = alter.name         ?? '';
+      document.getElementById('alter-display-name').value = alter.displayName  ?? '';
+      document.getElementById('alter-pronouns').value     = alter.pronouns     ?? '';
+      document.getElementById('alter-emoji').value        = alter.emoji        ?? '';
+      document.getElementById('alter-color').value        = alter.color        ?? '';
+      colorPicker.value = alter.color || '#7c6fcd';
+      document.getElementById('alter-avatar').value       = alter.avatar       ?? '';
+      document.getElementById('alter-description').value  = alter.description  ?? '';
+      (alter.proxyTags ?? []).forEach((tag) => { addProxyRow(tag.prefix, tag.suffix); });
+    } else {
+      deleteBtn.hidden = true;
+    }
+    if (alter) renderViewPanel(alter);
+    dialog.showModal();
+    setEditMode(startInEdit);
+  }
+
+  document.getElementById('add-alter-btn').onclick = () => openDialog(null, true);
+  document.getElementById('cancel-alter-btn').onclick = () => dialog.close();
+  document.getElementById('cancel-alter-btn-view').onclick = () => dialog.close();
+  document.getElementById('delete-alter-btn-view').onclick = () => {
+    if (editingAlter) { dialog.close(); deleteAlter(editingAlter.id); }
+  };
+  dialog.querySelector('.dialog-close').onclick = () => dialog.close();
+
+  grid.addEventListener('click', (event) => {
+    const card = event.target.closest('.alter-card');
+    if (!card) return;
+    const id = Number(card.dataset.id);
+    const alter = altersById.get(id);
+    if (alter) openDialog(alter, false);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const idVal = document.getElementById('alter-id').value;
+      const isNew = !idVal;
+
+      const proxyTags = [...proxyRows.querySelectorAll('.proxy-row')].map(row => ({
+        prefix: row.querySelector('.proxy-prefix').value,
+        suffix: row.querySelector('.proxy-suffix').value,
+      })).filter(t => t.prefix || t.suffix);
+
+      const record = {
+        name:        document.getElementById('alter-name').value.trim(),
+        displayName: document.getElementById('alter-display-name').value.trim(),
+        pronouns:    document.getElementById('alter-pronouns').value.trim(),
+        emoji:       document.getElementById('alter-emoji').value.trim() || null,
+        color:       document.getElementById('alter-color').value.trim() || null,
+        avatar:      document.getElementById('alter-avatar').value.trim() || null,
+        description: document.getElementById('alter-description').value.trim(),
+        proxyTags,
+        createdAt:   editingAlter?.createdAt ?? Date.now(),
+        updatedAt:   Date.now(),
+      };
+      if (!isNew) record.id = Number(idVal);
+
+      const savedId = await put('alters', record);
+      if (savedId !== undefined) record.id = savedId;
+
+      // notify the parent frame for the switcher / activity log
+      messageToParent({
+        type: 'alter-saved',
+        alter: record,
+        previous: isNew ? null : editingAlter,
+        isNew,
+      });
+
+      dialog.close();
+      await renderAlters();
+    } catch (err) {
+      console.error('Failed to save alter:', err);
+      alert('Failed to save alter. Please try again.');
+    }
+  });
+  
+  async function deleteAlter(id) {
+    const alter = altersById.get(id);
+    if (!alter) return;
+    if (!confirm(`Remove "${alter.name}"?`)) return;
+
+    await remove('alters', id);
+    messageToParent({ type: 'alter-deleted', id, alter });
+    await renderAlters();
+  }
+
+  function alterCard(a) {
+    const color   = a.color || '#7c6fcd';
+    const emoji   = a.emoji || '✦';
+    const avatar  = a.avatar
+      ? `<img class="alter-avatar-img" src="${escHtml(a.avatar)}" alt="${escHtml(a.name)}" loading="lazy">`
+      : `<span class="alter-avatar-emoji">${escHtml(emoji)}</span>`;
+
+    return `
+      <article class="alter-card" style="--alter-color: ${escHtml(color)}" data-id="${a.id}">
+        <div class="alter-card-accent"></div>
+        <div class="alter-card-head">
+          <div class="alter-avatar-wrap">${avatar}</div>
+          <div class="alter-card-identity">
+            <div class="alter-name">${escHtml(a.name)}</div>
+            ${a.pronouns ? `<div class="alter-pronouns">${escHtml(a.pronouns)}</div>` : ''}
+          </div>
+        </div>
+        ${a.description ? `<p class="alter-desc">${escHtml(a.description.slice(0, 120))}${a.description.length > 120 ? '…' : ''}</p>` : ''}
+        ${a.proxyTags?.length ? `<div class="alter-proxies">${a.proxyTags.map(t =>
+          `<code class="proxy-chip">${escHtml(t.prefix)}text${escHtml(t.suffix)}</code>`
+        ).join('')}</div>` : ''}
+      </article>
+    `;
+  }
+
+  async function renderAlters() {
+    const alters = await getAll('alters');
+    altersById = new Map(alters.map(a => [a.id, a]));
+
+    if (alters.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <p class="empty-state-title">no alters yet</p>
+          <p class="dialog-hint">click "add alter" to get started.</p>
+        </div>`;
+      return;
+    }
+
+    grid.className = `alter-grid size-${currentSize}`;
+    grid.innerHTML = alters.map(alterCard).join('');
+  }
+
+  const SIZE_LABELS = ['Icon', 'Compact', 'Full'];
+  const sizeSlider  = document.getElementById('card-size');
+  const sizeLabelEl = document.getElementById('card-size-label');
+
+  function updateSizeLabel() {
+    if (sizeLabelEl) sizeLabelEl.textContent = SIZE_LABELS[currentSize] ?? '';
+  }
+
+  if (sizeSlider) {
+    sizeSlider.value = currentSize;
+    updateSizeLabel();
+    sizeSlider.addEventListener('input', () => {
+      currentSize = Number(sizeSlider.value);
+      updateSizeLabel();
+      renderAlters();
+    });
+  }
+
+  window.addEventListener('message', async (event) => {
+    if (event.source !== window.parent) return;
+
+    const message = event.data;
+    if (!message || typeof message !== 'object' || message.source !== 'patchwork') return;
+
+    const reply = (ok, error) => {
+      event.source.postMessage(
+        { type: 'frame-response', requestId: message.requestId, ok, error },
+        event.origin === 'null' ? '*' : event.origin
+      );
+    };
+
+    try {
+      if (message.type === 'undo-alter-save') {
+        await remove('alters', message.id);
+      } else if (message.type === 'restore-alter') {
+        await put('alters', message.alter);
+      } else {
+        return;
+      }
+      await renderAlters();
+      reply(true);
+    } catch (error) {
+      reply(false, error instanceof Error ? error.message : 'The change could not be undone.');
+    }
+  });
+
+  renderAlters();
+</script>
 </body>
 </html>

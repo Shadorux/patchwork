@@ -1,0 +1,607 @@
+/* pages/alters.css — Alters page, rendered inside #content-frame. */
+
+.page {
+    padding: 22px;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 0 18px;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    letter-spacing: 0.01em;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-size-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+}
+
+.card-size-label {
+    min-width: 4.5rem;
+    text-align: right;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.card-size-slider {
+    width: 100px;
+    accent-color: var(--accent-strong, #665b51);
+    cursor: pointer;
+}
+
+/* Card size presets — icon, icon+name, full. */
+.alter-grid.size-0 {
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 10px;
+}
+
+.alter-grid.size-1 {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.alter-grid.size-2 {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+.alter-grid.size-0 .alter-card {
+    padding: 8px 6px 10px;
+}
+
+.alter-grid.size-0 .alter-card-head,
+.alter-grid.size-0 .alter-card-identity,
+.alter-grid.size-0 .alter-desc,
+.alter-grid.size-0 .alter-proxies,
+.alter-grid.size-0 .alter-card-accent {
+    display: none;
+}
+
+.alter-grid.size-0 .alter-avatar-wrap {
+    width: 100%;
+    height: 56px;
+}
+
+.alter-grid.size-2 .alter-avatar-wrap {
+    width: 56px;
+    height: 56px;
+}
+
+.alter-grid.size-2 .alter-avatar-emoji,
+.alter-grid.size-2 .alter-avatar-img {
+    font-size: 1.9rem;
+}
+
+/* ── alter grid ─────────────────────────────────────────────────── */
+
+.alter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 14px;
+}
+
+.alter-grid .empty-state {
+    grid-column: 1 / -1;
+}
+
+/* Card: hand-taped note feel — not a uniform AI rectangle. */
+.alter-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 22% 10%, rgba(255, 255, 255, 0.85), transparent 55%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.55), var(--panel-strong) 60%);
+    box-shadow:
+        var(--shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    overflow: hidden;
+}
+
+.alter-card:nth-child(2n) { transform: rotate(-0.4deg); }
+.alter-card:nth-child(3n) { transform: rotate(0.3deg); }
+.alter-card:nth-child(5n) { transform: rotate(-0.5deg); }
+
+.alter-card:hover {
+    transform: translateY(-3px) rotate(0deg);
+    box-shadow:
+        0 16px 38px rgba(34, 30, 27, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+
+
+
+/* Color band at the top — soft rounded ends, hand-drawn feel. */
+.alter-card-accent {
+    height: 6px;
+    margin: 0 -1px 14px;
+    border-radius: 999px;
+    background: var(--alter-color, var(--accent));
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.4) inset,
+        0 2px 6px rgba(34, 30, 27, 0.12);
+}
+
+.alter-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    margin-top: 14px;
+}
+
+.alter-avatar-wrap {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+}
+
+.alter-avatar-img,
+.alter-avatar-emoji {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+.alter-avatar-img {
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.alter-avatar-emoji {
+    background: var(--alter-color, var(--accent));
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.alter-card-identity {
+    min-width: 0;
+}
+
+.alter-name {
+    font-size: 1rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.alter-pronouns {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.alter-desc {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.alter-proxies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.proxy-chip {
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-muted);
+    color: var(--accent-strong);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.74rem;
+    overflow-wrap: anywhere;
+}
+
+
+/* ── alter view panel (read-only dialog state) ──────────────────── */
+
+.alter-view-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.alter-view-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 0 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+
+.alter-view-avatar {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 1.6rem;
+    color: #fff;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
+}
+
+.alter-view-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.alter-view-identity {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.alter-view-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.alter-view-pronouns {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.alter-view-swatch {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.7);
+    box-shadow: 0 0 0 1px var(--border);
+    cursor: default;
+}
+
+/* Field rows in view mode */
+.alter-view-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 0;
+}
+
+.view-field {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    gap: 8px 14px;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.view-field:last-child {
+    border-bottom: none;
+}
+
+.view-field-label {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.view-field-value {
+    color: var(--text);
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
+}
+
+.view-description {
+    white-space: pre-wrap;
+    line-height: 1.55;
+}
+
+.view-color-chip {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12);
+    vertical-align: middle;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.view-link {
+    color: var(--accent-strong);
+    word-break: break-all;
+}
+
+/* ── add / edit dialog ──────────────────────────────────────────── */
+
+#alter-dialog {
+    width: min(820px, calc(100vw - 32px));
+    overflow-y: auto;
+}
+
+#alter-form {
+    margin: 0;
+}
+
+.alter-editor {
+    margin-top: 14px;
+}
+
+/* View/edit mode toggle in the dialog heading. */
+.dialog-mode-toggle {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.mode-btn {
+    min-width: 64px;
+    padding: 0 10px;
+}
+
+.mode-btn.active {
+    border-color: var(--accent-strong, #665b51);
+    background: var(--accent-strong, #665b51);
+    color: #fff;
+}
+
+.alter-editor-form.hidden {
+    display: none;
+}
+
+/* When form is hidden (view mode), let the preview use the full dialog width. */
+.alter-editor:has(.alter-editor-form.hidden) {
+    grid-template-columns: 1fr;
+}
+
+.alter-editor:has(.alter-editor-form.hidden) .alter-preview {
+    position: static;
+    max-width: 380px;
+    margin: 0 auto;
+}
+
+.alter-preview {
+    position: sticky;
+    top: 0;
+    align-self: start;
+}
+
+.alter-preview-card {
+    padding: 14px 16px 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel-strong);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+
+.alter-preview-accent {
+    height: 6px;
+    margin: 0 -1px 14px;
+    border-radius: 999px;
+    background: var(--alter-color, var(--accent));
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+}
+
+.alter-preview-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    margin-top: 12px;
+}
+
+.alter-preview-avatar {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.alter-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.alter-preview-emoji {
+    background: var(--alter-color, var(--accent));
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.alter-preview-identity {
+    min-width: 0;
+}
+
+.alter-preview-name {
+    font-size: 1rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.alter-preview-pronouns {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.alter-preview-desc {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    display: none;
+}
+
+.alter-preview-proxies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.alter-editor-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.field-label {
+    display: block;
+    margin: 14px 0 6px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.field-input {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+.field-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+textarea.field-input {
+    min-height: 88px;
+    resize: vertical;
+}
+
+.field-hint {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-row input[type="color"] {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 40px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+}
+
+
+.proxy-section {
+    margin: 18px 0 0;
+    padding: 6px 14px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.proxy-section .field-label {
+    margin-top: 0;
+}
+
+.proxy-section .toolbar-button {
+    margin-top: 4px;
+}
+
+.proxy-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.proxy-sep {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.proxy-remove {
+    min-width: 40px;
+    padding: 0 10px;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+}
+
+@media (max-width: 720px) {
+    .alter-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .alter-preview {
+        position: static;
+    }
+}
+
+@media (max-width: 520px) {
+    .page {
+        padding: 16px;
+    }
+
+    .proxy-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    }
+
+    .proxy-sep {
+        display: none;
+    }
+}
