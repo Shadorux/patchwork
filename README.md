@@ -25,7 +25,7 @@
 - more to come, check the [discord](https://discord.gg/CbcWTsXAgP) for the latest plans and progress!
 
 ## who is the developer?
-- hey! my name is ezra (you may also refer to me as mantis or andromeda), i am a p-did system, and im currently working on developing **patchwork.** this section is a work in progress.
+- hey! my name is ezra, i am a p-did system, and im currently working on developing **patchwork.** this section is a work in progress.
 
 ## want to contribute?
 patchwork is early and there's a lot of room to help out, see [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
