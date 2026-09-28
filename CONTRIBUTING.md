@@ -13,12 +13,6 @@ you don't need to write code to help! some ways to pitch in are:
 - **testing** - try the [dev build](https://pw-dev.vercel.app) and tell us what's confusing, broken, or missing.
 - **feedback from lived experience** - patchwork is built by and for plural systems, so if something doesn't reflect how your system actually works, that feedback is valuable.
 
-## what's needed right now
-- the `pages/*.html` files (dashboard, system, alters, settings) are currently empty shells - these need actual content and functionality
-- sidebar icons referenced in `index.html` don't exist yet
-- a way to actually store alter/system data (currently everything is placeholder UI, nothing persists)
-- accessibility passes on existing markup
-
 check open issues on the [github repo](https://github.com/mantislegion/patchwork) for anything more current.
 
 ## how to contribute code
