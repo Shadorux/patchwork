@@ -7,7 +7,6 @@ thank you for wanting to help out with patchwork! this is a small, early project
 you don't need to write code to help! some ways to pitch in are:
 
 - **code** - bug fixes, new features, refactors. see "what's needed right now" below for ideas. this section is always changing.
-- **design** - icons (a lot of the sidebar icons are still placeholders), layout feedback, accessibility improvements.
 - **bug reports** - if something breaks or looks wrong, open an issue.
 - **feature suggestions** - have an idea for something a plural system would find useful? open an issue or bring it up in discord.
 - **testing** - try the [dev build](https://pw-dev.vercel.app) and tell us what's confusing, broken, or missing.
